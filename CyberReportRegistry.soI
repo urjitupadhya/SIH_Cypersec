@@ -1,0 +1,331 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+
+/**
+ * @title CyberReportRegistry
+ * @dev Immutable storage for cybersecurity incident reports with role-based access control
+ * @author AI-Powered CyberGuard Team
+ */
+contract CyberReportRegistry is AccessControl, ReentrancyGuard, Pausable {
+    // Role definitions
+    bytes32 public constant REPORTER_ROLE = keccak256("REPORTER_ROLE");
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    
+    // Report structure
+    struct CyberReport {
+        uint256 id;
+        string reportHash; // IPFS hash or content hash
+        string category; // phishing, malware, social_engineering, etc.
+        address reporter;
+        uint256 timestamp;
+        string severity; // low, medium, high, critical
+        string targetType; // email, website, application, other
+        bool verified; // Admin verification status
+    }
+    
+    // Storage
+    mapping(uint256 => CyberReport) private reports;
+    uint256 private reportCounter;
+    
+    // Category tracking for analytics
+    mapping(string => uint256) public categoryCount;
+    string[] public validCategories;
+    
+    // Events
+    event ReportSubmitted(
+        uint256 indexed id,
+        string reportHash,
+        string category,
+        address indexed reporter,
+        uint256 timestamp,
+        string severity
+    );
+    
+    event ReportVerified(uint256 indexed id, address indexed verifier);
+    event ReporterWhitelisted(address indexed reporter, address indexed admin);
+    event ReporterRemoved(address indexed reporter, address indexed admin);
+    event CategoryAdded(string category);
+    
+    // Errors
+    error UnauthorizedReporter();
+    error InvalidCategory();
+    error EmptyReportHash();
+    error ReportNotFound();
+    error InvalidSeverity();
+    
+    modifier onlyReporter() {
+        if (!hasRole(REPORTER_ROLE, msg.sender)) {
+            revert UnauthorizedReporter();
+        }
+        _;
+    }
+    
+    modifier validReportData(string memory reportHash, string memory category) {
+        if (bytes(reportHash).length == 0) {
+            revert EmptyReportHash();
+        }
+        if (!isValidCategory(category)) {
+            revert InvalidCategory();
+        }
+        _;
+    }
+    
+    constructor(address admin) {
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(ADMIN_ROLE, admin);
+        
+        // Initialize valid categories
+        validCategories = [
+            "phishing",
+            "malware",
+            "social_engineering",
+            "data_breach",
+            "ransomware",
+            "identity_theft",
+            "financial_fraud",
+            "other"
+        ];
+        
+        // Initialize category counts
+        for (uint i = 0; i < validCategories.length; i++) {
+            categoryCount[validCategories[i]] = 0;
+        }
+    }
+    
+    /**
+     * @dev Submit a new cybersecurity incident report
+     * @param reportHash IPFS hash or hashed content of the report
+     * @param category Category of the cyber incident
+     * @param severity Severity level (low, medium, high, critical)
+     * @param targetType Type of target (email, website, application, other)
+     */
+    function submitReport(
+        string memory reportHash,
+        string memory category,
+        string memory severity,
+        string memory targetType
+    ) external onlyReporter whenNotPaused validReportData(reportHash, category) nonReentrant {
+        if (!isValidSeverity(severity)) {
+            revert InvalidSeverity();
+        }
+        
+        reportCounter++;
+        
+        reports[reportCounter] = CyberReport({
+            id: reportCounter,
+            reportHash: reportHash,
+            category: category,
+            reporter: msg.sender,
+            timestamp: block.timestamp,
+            severity: severity,
+            targetType: targetType,
+            verified: false
+        });
+        
+        categoryCount[category]++;
+        
+        emit ReportSubmitted(
+            reportCounter,
+            reportHash,
+            category,
+            msg.sender,
+            block.timestamp,
+            severity
+        );
+    }
+    
+    /**
+     * @dev Get a specific report by ID
+     * @param id Report ID
+     * @return CyberReport struct
+     */
+    function getReport(uint256 id) external view returns (CyberReport memory) {
+        if (id == 0 || id > reportCounter) {
+            revert ReportNotFound();
+        }
+        return reports[id];
+    }
+    
+    /**
+     * @dev Get all reports for community alerts
+     * @return Array of all CyberReport structs
+     */
+    function getAllReports() external view returns (CyberReport[] memory) {
+        CyberReport[] memory allReports = new CyberReport[](reportCounter);
+        for (uint256 i = 1; i <= reportCounter; i++) {
+            allReports[i - 1] = reports[i];
+        }
+        return allReports;
+    }
+    
+    /**
+     * @dev Get recent reports (last N reports)
+     * @param count Number of recent reports to fetch
+     * @return Array of recent CyberReport structs
+     */
+    function getRecentReports(uint256 count) external view returns (CyberReport[] memory) {
+        uint256 actualCount = count > reportCounter ? reportCounter : count;
+        CyberReport[] memory recentReports = new CyberReport[](actualCount);
+        
+        for (uint256 i = 0; i < actualCount; i++) {
+            recentReports[i] = reports[reportCounter - i];
+        }
+        
+        return recentReports;
+    }
+    
+    /**
+     * @dev Get reports by category
+     * @param category Category to filter by
+     * @return Array of CyberReport structs matching category
+     */
+    function getReportsByCategory(string memory category) external view returns (CyberReport[] memory) {
+        if (!isValidCategory(category)) {
+            revert InvalidCategory();
+        }
+        
+        // First pass: count matching reports
+        uint256 matchingCount = 0;
+        for (uint256 i = 1; i <= reportCounter; i++) {
+            if (keccak256(bytes(reports[i].category)) == keccak256(bytes(category))) {
+                matchingCount++;
+            }
+        }
+        
+        // Second pass: populate array
+        CyberReport[] memory categoryReports = new CyberReport[](matchingCount);
+        uint256 currentIndex = 0;
+        
+        for (uint256 i = 1; i <= reportCounter; i++) {
+            if (keccak256(bytes(reports[i].category)) == keccak256(bytes(category))) {
+                categoryReports[currentIndex] = reports[i];
+                currentIndex++;
+            }
+        }
+        
+        return categoryReports;
+    }
+    
+    /**
+     * @dev Verify a report (admin only)
+     * @param id Report ID to verify
+     */
+    function verifyReport(uint256 id) external onlyRole(ADMIN_ROLE) {
+        if (id == 0 || id > reportCounter) {
+            revert ReportNotFound();
+        }
+        
+        reports[id].verified = true;
+        emit ReportVerified(id, msg.sender);
+    }
+    
+    /**
+     * @dev Add a reporter to whitelist
+     * @param reporter Address to whitelist
+     */
+    function addReporter(address reporter) external onlyRole(ADMIN_ROLE) {
+        _grantRole(REPORTER_ROLE, reporter);
+        emit ReporterWhitelisted(reporter, msg.sender);
+    }
+    
+    /**
+     * @dev Remove a reporter from whitelist
+     * @param reporter Address to remove
+     */
+    function removeReporter(address reporter) external onlyRole(ADMIN_ROLE) {
+        _revokeRole(REPORTER_ROLE, reporter);
+        emit ReporterRemoved(reporter, msg.sender);
+    }
+    
+    /**
+     * @dev Add a new valid category
+     * @param category New category to add
+     */
+    function addCategory(string memory category) external onlyRole(ADMIN_ROLE) {
+        if (!isValidCategory(category)) {
+            validCategories.push(category);
+            categoryCount[category] = 0;
+            emit CategoryAdded(category);
+        }
+    }
+    
+    /**
+     * @dev Pause contract (emergency)
+     */
+    function pause() external onlyRole(ADMIN_ROLE) {
+        _pause();
+    }
+    
+    /**
+     * @dev Unpause contract
+     */
+    function unpause() external onlyRole(ADMIN_ROLE) {
+        _unpause();
+    }
+    
+    /**
+     * @dev Check if category is valid
+     * @param category Category to check
+     * @return bool validity
+     */
+    function isValidCategory(string memory category) public view returns (bool) {
+        for (uint256 i = 0; i < validCategories.length; i++) {
+            if (keccak256(bytes(validCategories[i])) == keccak256(bytes(category))) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * @dev Check if severity is valid
+     * @param severity Severity to check
+     * @return bool validity
+     */
+    function isValidSeverity(string memory severity) public pure returns (bool) {
+        bytes32 severityHash = keccak256(bytes(severity));
+        return (
+            severityHash == keccak256(bytes("low")) ||
+            severityHash == keccak256(bytes("medium")) ||
+            severityHash == keccak256(bytes("high")) ||
+            severityHash == keccak256(bytes("critical"))
+        );
+    }
+    
+    /**
+     * @dev Get total number of reports
+     * @return uint256 total count
+     */
+    function getTotalReports() external view returns (uint256) {
+        return reportCounter;
+    }
+    
+    /**
+     * @dev Get all valid categories
+     * @return string[] array of categories
+     */
+    function getValidCategories() external view returns (string[] memory) {
+        return validCategories;
+    }
+    
+    /**
+     * @dev Get category statistics
+     * @return categories Array of category names
+     * @return counts Array of counts for each category
+     */
+    function getCategoryStats() external view returns (string[] memory categories, uint256[] memory counts) {
+        categories = new string[](validCategories.length);
+        counts = new uint256[](validCategories.length);
+        
+        for (uint256 i = 0; i < validCategories.length; i++) {
+            categories[i] = validCategories[i];
+            counts[i] = categoryCount[validCategories[i]];
+        }
+        
+        return (categories, counts);
+    }
+}

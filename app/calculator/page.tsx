@@ -21,33 +21,36 @@ export default function CalculatorPage() {
   const [content, setContent] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const analyzeContent = async () => {
     if (!content.trim()) return
-
     setIsAnalyzing(true)
+    setError(null)  // Clear any previous errors
 
-    // Simulate AI analysis with realistic delay
-    setTimeout(() => {
-      // Mock AI analysis result based on content
-      const mockResult: AnalysisResult = {
-        riskScore: Math.floor(Math.random() * 100),
-        category: Math.random() > 0.7 ? "Scam" : Math.random() > 0.4 ? "Suspicious" : "Legit",
-        explanation:
-          "This content contains several red flags commonly associated with phishing attempts, including urgent language, suspicious links, and requests for personal information.",
-        indicators: [
-          "Urgent language detected",
-          "Suspicious domain in links",
-          "Request for personal information",
-          "Poor grammar and spelling",
-          "Generic greeting",
-        ],
-        confidence: 85 + Math.floor(Math.random() * 15),
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.details || errorData.error || `HTTP ${response.status}: ${response.statusText}`)
       }
 
-      setResult(mockResult)
+      const result = await response.json()
+      setResult(result)
+      setError(null)
+    } catch (error) {
+      console.error("Analysis error:", error)
+      setError(error instanceof Error ? error.message : "An unexpected error occurred")
+    } finally {
       setIsAnalyzing(false)
-    }, 3000)
+    }
   }
 
   const getRiskColor = (score: number) => {
@@ -116,6 +119,21 @@ export default function CalculatorPage() {
               Paste any email, message, or text content below and our AI will analyze it for potential scam indicators
             </p>
           </div>
+
+          {/* Error Display */}
+          {error && (
+            <Card className="shadow-lg border-destructive">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-2 text-destructive">
+                  <XCircle className="h-5 w-5" />
+                  <div>
+                    <div className="font-medium">Analysis Error</div>
+                    <div className="text-sm text-muted-foreground">{error}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Input Section */}
           <Card className="shadow-lg">

@@ -20,6 +20,8 @@ import {
   Sparkles,
   Zap,
   Eye,
+  NotepadText,
+  SquarePen,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -173,6 +175,14 @@ export default function HomePage() {
                 <User className="h-5 w-5 group-hover:scale-110 transition-transform" />
                 <span className="font-medium">Profile</span>
                 <Eye className="h-4 w-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+              </Link>
+              <Link
+                href="/report"
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-secondary/10 hover:text-secondary transition-all duration-200 group"
+              >
+                <NotepadText className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                <span className="font-medium">Report</span>
+                <SquarePen className="h-4 w-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
               </Link>
             </nav>
 

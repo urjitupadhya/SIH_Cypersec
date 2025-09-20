@@ -1,0 +1,83 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        { "internalType": "string", "name": "reportHash", "type": "string" },
+        { "internalType": "string", "name": "category", "type": "string" },
+        { "internalType": "string", "name": "severity", "type": "string" },
+        { "internalType": "string", "name": "targetType", "type": "string" }
+      ],
+      "name": "submitReport",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getAllReports",
+      "outputs": [
+        {
+          "components": [
+            { "internalType": "uint256", "name": "id", "type": "uint256" },
+            { "internalType": "address", "name": "reporter", "type": "address" },
+            { "internalType": "string", "name": "reportHash", "type": "string" },
+            { "internalType": "string", "name": "category", "type": "string" },
+            { "internalType": "string", "name": "severity", "type": "string" },
+            { "internalType": "string", "name": "targetType", "type": "string" },
+            { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+            { "internalType": "bool", "name": "verified", "type": "bool" }
+          ],
+          "internalType": "struct CyberReportRegistry.Report[]",
+          "name": "",
+          "type": "tuple[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [ { "internalType": "uint256", "name": "count", "type": "uint256" } ],
+      "name": "getRecentReports",
+      "outputs": [
+        {
+          "components": [
+            { "internalType": "uint256", "name": "id", "type": "uint256" },
+            { "internalType": "address", "name": "reporter", "type": "address" },
+            { "internalType": "string", "name": "reportHash", "type": "string" },
+            { "internalType": "string", "name": "category", "type": "string" },
+            { "internalType": "string", "name": "severity", "type": "string" },
+            { "internalType": "string", "name": "targetType", "type": "string" },
+            { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+            { "internalType": "bool", "name": "verified", "type": "bool" }
+          ],
+          "internalType": "struct CyberReportRegistry.Report[]",
+          "name": "",
+          "type": "tuple[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getValidCategories",
+      "outputs": [ { "internalType": "string[]", "name": "", "type": "string[]" } ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [ { "internalType": "uint256", "name": "reportId", "type": "uint256" } ],
+      "name": "verifyReport",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getReportCount",
+      "outputs": [ { "internalType": "uint256", "name": "", "type": "uint256" } ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ]
+}
